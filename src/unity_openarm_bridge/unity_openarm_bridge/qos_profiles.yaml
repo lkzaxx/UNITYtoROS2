@@ -1,0 +1,32 @@
+# QoS Profiles for Unity-OpenArm Bridge
+#
+# This file defines Quality of Service (QoS) profiles for different types
+# of communication in the Unity-OpenArm bridge system.
+
+# Sensor data profile - for high-frequency, best-effort data
+sensor_data:
+  reliability: best_effort
+  history: keep_last
+  depth: 5
+  durability: volatile
+
+# Control commands profile - for reliable, low-latency commands
+control_commands:
+  reliability: reliable
+  history: keep_last
+  depth: 1
+  durability: volatile
+
+# Status updates profile - for reliable status information
+status_updates:
+  reliability: reliable
+  history: keep_last
+  depth: 10
+  durability: transient_local
+
+# Heartbeat profile - for periodic heartbeat messages
+heartbeat:
+  reliability: reliable
+  history: keep_last
+  depth: 3
+  durability: volatile

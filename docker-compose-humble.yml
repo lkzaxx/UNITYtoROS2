@@ -2,6 +2,7 @@ services:
   ros2_humble:
     image: osrf/ros:humble-desktop-full
     container_name: ros2_humble
+    working_dir: /root/ros2_ws
     # network_mode: host  # 改為橋接網路模式以支援埠號映射
     ports:
       - "7400:7400/udp"  # DDS 發現埠（SPDP）
@@ -21,5 +22,5 @@ services:
       - ./:/root/ros2_ws
       - ./cyclonedds.xml:/etc/cyclonedds.xml
       - ./cyclonedds.xml:/root/.cyclonedds.xml
-    entrypoint: ["/root/ros2_ws/docker-entrypoint.sh"]
+    entrypoint: ["/root/ros2_ws/docker-entrypoint-humble.sh"]
     command: bash
