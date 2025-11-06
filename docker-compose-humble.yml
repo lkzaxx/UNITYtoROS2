@@ -7,6 +7,7 @@ services:
     ports:
       - "7400:7400/udp"  # DDS 發現埠（SPDP）
       - "7410-7420:7410-7420/udp"  # DDS 資料傳輸埠範圍（縮小範圍避免衝突）
+      - "10000:10000/tcp"  # ROS-TCP-Endpoint 伺服器埠（Unity 連接用）
     stdin_open: true
     tty: true
     environment:
