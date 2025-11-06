@@ -1,0 +1,25 @@
+services:
+  ros2_humble:
+    image: osrf/ros:humble-desktop-full
+    container_name: ros2_humble
+    # network_mode: host  # 改為橋接網路模式以支援埠號映射
+    ports:
+      - "7400:7400/udp"  # DDS 發現埠（SPDP）
+      - "7410-7420:7410-7420/udp"  # DDS 資料傳輸埠範圍（縮小範圍避免衝突）
+    stdin_open: true
+    tty: true
+    environment:
+      - DISPLAY=${DISPLAY}
+      - WAYLAND_DISPLAY=${WAYLAND_DISPLAY}
+      - XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - CYCLONEDDS_URI=file:///etc/cyclonedds.xml
+      - ROS_DOMAIN_ID=0
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /mnt/wslg:/mnt/wslg
+      - ./:/root/ros2_ws
+      - ./cyclonedds.xml:/etc/cyclonedds.xml
+      - ./cyclonedds.xml:/root/.cyclonedds.xml
+    entrypoint: ["/root/ros2_ws/docker-entrypoint.sh"]
+    command: bash

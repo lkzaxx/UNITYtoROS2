@@ -1,0 +1,26 @@
+<CycloneDDS>
+  <Domain id="any">
+    <General>
+      <NetworkInterfaceAddress>auto</NetworkInterfaceAddress>
+      <AllowMulticast>true</AllowMulticast>
+    </General>
+    <Discovery>
+      <Peers>
+        <!-- Windows 主機 IP（WSL2 網關） -->
+        <Peer address="192.168.65.1"/>
+        <!-- 容器 IP（備用） -->
+        <Peer address="192.168.65.6"/>
+        <!-- WSL2 備用 IP -->
+        <Peer address="192.168.65.7"/>
+        <!-- Windows 主機 IP -->
+        <Peer address="192.168.2.214"/>
+        <!-- WSL2 網關 IP -->
+        <Peer address="172.19.144.1"/>
+        <!-- 本地回環 -->
+        <Peer address="127.0.0.1"/>        
+      </Peers>
+      <ParticipantIndex>auto</ParticipantIndex>
+      <MaxAutoParticipantIndex>100</MaxAutoParticipantIndex>
+    </Discovery>
+  </Domain>
+</CycloneDDS>

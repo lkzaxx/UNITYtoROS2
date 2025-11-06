@@ -1,0 +1,40 @@
+# ROS2 構建目錄
+build/
+install/
+log/
+
+# Python 編譯文件
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# 環境變數
+.env
+.venv
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系統文件
+.DS_Store
+Thumbs.db
+
+# 備份文件
+*.tar.gz
+*.backup
+*_backup.*
+
+# Docker
+.dockerignore
+
+# 臨時文件
+*.tmp
+*.log
+*.bak
+

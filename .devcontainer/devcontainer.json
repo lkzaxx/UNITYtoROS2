@@ -1,0 +1,25 @@
+{
+  "name": "ROS 2 Jazzy",
+  "image": "osrf/ros:jazzy-desktop-full",
+  "runArgs": [
+    "--network=host",
+    "-e", "DISPLAY=${localEnv:DISPLAY}",
+    "-e", "WAYLAND_DISPLAY=${localEnv:WAYLAND_DISPLAY}",
+    "-e", "XDG_RUNTIME_DIR=${localEnv:XDG_RUNTIME_DIR}",
+    "-v", "/tmp/.X11-unix:/tmp/.X11-unix",
+    "-v", "/mnt/wslg:/mnt/wslg"
+  ],
+  "workspaceMount": "source=${localWorkspaceFolder},target=/root/ros2_ws,type=bind",
+  "workspaceFolder": "/root/ros2_ws",
+  "postCreateCommand": "bash -lc 'source /opt/ros/jazzy/setup.bash && apt update && apt install -y python3-colcon-common-extensions git vim && echo \"export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp\" >> /root/.bashrc && echo \"export CYCLONEDDS_URI=file:///root/.cyclonedds.xml\" >> /root/.bashrc && echo \"export ROS_DOMAIN_ID=0\" >> /root/.bashrc'",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-python.python",
+        "ms-vscode.cmake-tools",
+        "ms-iot.vscode-ros"
+      ]
+    }
+  }
+}
