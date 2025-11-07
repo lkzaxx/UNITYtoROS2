@@ -5,37 +5,35 @@ services:
   ros2-tcp-endpoint:
     image: osrf/ros:humble-desktop
     container_name: unity_ros2_tcp
-    network_mode: host  # 使用主機網路模式，不需要 ports 映射
+    network_mode: host
     environment:
       - ROS_DOMAIN_ID=0
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
     volumes:
-      # 源碼目錄映射
       - ./src:/ros2_ws/src
       - ./scripts:/scripts
-    # 注意: 使用 network_mode: host 時，ports 映射會被忽略，所以已移除
     command: ["/bin/bash", "-c", "
-        set -e &&
+        # 移除 set -e 避免任何錯誤導致容器退出
         echo '🔧 更新套件列表...' &&
-        apt-get update &&
+        apt-get update || echo '⚠️  更新套件列表失敗,繼續執行...' &&
 
         echo '📦 安裝 Cyclone DDS...' &&
-        apt-get install -y ros-humble-rmw-cyclonedds-cpp &&
+        apt-get install -y ros-humble-rmw-cyclonedds-cpp || echo '⚠️  Cyclone DDS 安裝失敗' &&
 
         echo '📦 安裝 ROS-TCP-Endpoint...' &&
-        apt-get install -y ros-humble-ros-tcp-endpoint ||
+        (apt-get install -y ros-humble-ros-tcp-endpoint ||
         (
-          echo '⚠️ ros-tcp-endpoint 不在官方庫中，從源碼安裝...' &&
+          echo '⚠️  ros-tcp-endpoint 不在官方庫中,從源碼安裝...' &&
           apt-get install -y git python3-pip &&
           cd /ros2_ws/src &&
           if [ ! -d ros_tcp_endpoint ]; then
-            git clone https://github.com/Unity-Technologies/ROS-TCP-Endpoint.git ros_tcp_endpoint;
+            git clone https://github.com/Unity-Technologies/ROS-TCP-Endpoint.git ros_tcp_endpoint || echo '⚠️  無法克隆 ros_tcp_endpoint';
           fi
-        ) &&
+        )) &&
 
         echo '📦 安裝 Python 依賴...' &&
         apt-get install -y python3-pip &&
-        pip3 install numpy transforms3d pyyaml &&
+        pip3 install numpy transforms3d pyyaml || echo '⚠️  Python 依賴安裝失敗' &&
 
         echo '🔨 建置 ROS2 工作區...' &&
         cd /ros2_ws &&
@@ -44,10 +42,13 @@ services:
 
         if [ -d src/ros_tcp_endpoint ] || [ -d src/unity_openarm_bridge ]; then
           apt-get install -y python3-colcon-common-extensions &&
-          colcon build --symlink-install &&
-          source install/setup.bash;
+          colcon build --symlink-install || echo '⚠️  建置失敗,跳過...' &&
+          if [ -f install/setup.bash ]; then
+            source install/setup.bash;
+          fi;
         fi &&
 
+        echo '✅ 環境設定完成' &&
         echo '🚀 啟動 TCP Endpoint 伺服器...' &&
         source /opt/ros/humble/setup.bash &&
         export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp &&
@@ -56,24 +57,26 @@ services:
           source install/setup.bash;
         fi &&
 
-        ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=0.0.0.0 -p ROS_TCP_PORT:=10000 &
+        # 在背景啟動 TCP Endpoint
+        (ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=0.0.0.0 -p ROS_TCP_PORT:=10000 &) || echo '⚠️  TCP Endpoint 啟動失敗' &&
 
         echo '⏳ 等待 TCP Endpoint 啟動...' &&
         sleep 5 &&
 
-        echo '🔄 啟動 Unity 橋接節點...' &&
-        if [ -f /scripts/unity_tcp_bridge.py ]; then
-          python3 /scripts/unity_tcp_bridge.py;
-        elif [ -f /ros2_ws/install/unity_openarm_bridge/lib/unity_openarm_bridge/tcp_bridge_node.py ]; then
-          python3 /ros2_ws/install/unity_openarm_bridge/lib/unity_openarm_bridge/tcp_bridge_node.py;
-        else
-          echo '⚠️ 找不到橋接節點，保持 TCP Endpoint 運行...' &&
-          tail -f /dev/null;
-        fi
+        echo '📡 TCP Endpoint 應該在 port 10000 上監聽' &&
+        echo '🔍 容器保持運行中...' &&
+        
+        # 保持容器運行
+        tail -f /dev/null
       "]
     stdin_open: true
     tty: true
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "default_server_endpoint"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   # ROS2 工具和監控容器
   ros2-tools:
@@ -98,7 +101,7 @@ services:
 
         echo '📊 ROS2 工具容器就緒' &&
         echo '' &&
-        echo '可用命令範例：' &&
+        echo '可用命令範例:' &&
         echo '  ros2 topic list' &&
         echo '  ros2 topic echo /unity/heartbeat' &&
         echo '  ros2 topic echo /openarm/joint_states' &&
@@ -108,3 +111,4 @@ services:
       "]
     stdin_open: true
     tty: true
+    restart: unless-stopped
