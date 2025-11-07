@@ -1,39 +1,37 @@
-========================================
+════════════════════════════════════════════════════════
+    ROS2 Unity OpenArm Docker 環境部署工具
+════════════════════════════════════════════════════════
 
-🚀 Unity-OpenArm ROS2 環境初始化
+[94m[檢查][0m 檢查 Docker 是否已安裝...
+Docker version 28.5.1, build e180ab8
+[92m[成功][0m Docker 已安裝
 
-========================================
+[94m[檢查][0m 檢查 Docker 服務狀態...
+[92m[成功][0m Docker 服務運行正常
 
+[94m[清理][0m 檢查並停止現有容器...
+[92m[成功][0m 舊容器已清理
 
-🔧 [1/6] 更新套件列表...
+[94m[檢查][0m 檢查必要檔案...
+[92m[成功][0m 所有必要檔案都存在
+使用 Docker Compose 檔案: docker-compose-humble.yml
 
-📦 [2/6] 安裝必要套件...
+[94m[準備][0m 拉取 Docker 映像（可能需要幾分鐘）...
+humble-desktop: Pulling from osrf/ros
+Digest: sha256:b2b520a8b42d868ed498a8c062ae8d555d3fa671e698641d4a53558badb8fc0c
+Status: Image is up to date for osrf/ros:humble-desktop
+docker.io/osrf/ros:humble-desktop
+[92m[成功][0m Docker 映像準備完成
 
-bash: line 4: ros-humble-rmw-cyclonedds-cpp: command not found
+[1m[94m[啟動][0m 正在建立並啟動容器...
 
-bash: line 5: python3-pip: command not found
+yaml: line 17: found unknown escape character
+[91m[錯誤][0m 容器啟動失敗！
 
-bash: line 6: python3-colcon-common-extensions: command not found
+查看詳細錯誤訊息：
+yaml: line 17: found unknown escape character
 
-usage: git [--version] [--help] [-C <path>] [-c <name>=<value>]
-
-           [--exec-path[=<path>]] [--html-path] [--man-path] [--info-path]
-
-           [-p | --paginate | -P | --no-pager] [--no-replace-objects] [--bare]
-
-           [--git-dir=<path>] [--work-tree=<path>] [--namespace=<name>]
-
-           [--super-prefix=<path>] [--config-env=<name>=<envvar>]
-
-           <command> [<args>]
-
-
-These are common Git commands used in various situations:
-
-
-start a working area (see also: git help tutorial)
-
-幫忙確認docker-compose-humble.yml是否有問題
+docker-compose-humble.yml還是有問題
 
 
 

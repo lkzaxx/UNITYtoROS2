@@ -83,9 +83,10 @@ echo.
 REM ===== 步驟 4: 檢查必要的檔案 =====
 echo %BLUE%[檢查]%RESET% 檢查必要檔案...
 
-REM ✅ 修正：只檢查實際存在的配置檔案
 if not exist "docker-compose-humble.yml" (
     echo %RED%[錯誤]%RESET% 找不到 docker-compose-humble.yml！
+    echo.
+    echo 請確保 docker-compose-humble.yml 檔案在當前目錄中
     pause
     exit /b 1
 )
@@ -131,43 +132,109 @@ echo %GREEN%[成功]%RESET% 容器啟動中，等待服務就緒...
 echo.
 
 REM ===== 步驟 7: 等待服務就緒 =====
-echo 等待 ROS2 服務啟動...
-timeout /t 5 /nobreak >nul
+echo 等待 ROS2 服務啟動（約 30-60 秒）...
+echo 首次啟動需要編譯套件，請耐心等待...
 
-REM 檢查容器狀態
-docker ps | findstr "ros2_humble\|unity_ros2_tcp" >nul
+REM 顯示進度條
+set /a counter=0
+set /a total=30
+
+:wait_loop
+set /a counter+=1
+cls
+echo.
+echo ════════════════════════════════════════════════════════
+echo     ROS2 Unity OpenArm Docker 環境部署工具
+echo ════════════════════════════════════════════════════════
+echo.
+echo %BLUE%[進度]%RESET% 等待服務啟動中...
+echo.
+
+REM 計算進度百分比
+set /a percent=(counter*100)/total
+
+REM 顯示進度條
+set "bar="
+set /a barLength=percent/2
+for /l %%i in (1,1,!barLength!) do set "bar=!bar!█"
+for /l %%i in (!barLength!,1,50) do set "bar=!bar!░"
+
+echo [!bar!] !percent!%%
+echo.
+
+if !counter! lss !total! (
+    timeout /t 2 /nobreak >nul
+    goto wait_loop
+)
+
+REM ===== 步驟 8: 檢查容器狀態 =====
+echo.
+echo %BLUE%[檢查]%RESET% 驗證容器狀態...
+
+docker ps | findstr "unity_ros2_tcp" >nul
 if errorlevel 1 (
-    echo %YELLOW%⚠%RESET% 容器可能未正確啟動
+    echo %YELLOW%⚠%RESET% 主容器可能未正確啟動
 ) else (
-    echo %GREEN%✓%RESET% 容器運行正常
+    echo %GREEN%✓%RESET% 主容器運行正常
+)
+
+docker ps | findstr "ros2_tools" >nul
+if errorlevel 1 (
+    echo %YELLOW%⚠%RESET% 工具容器可能未正確啟動
+) else (
+    echo %GREEN%✓%RESET% 工具容器運行正常
 )
 
 echo.
 
-REM ===== 步驟 8: 顯示狀態 =====
+REM ===== 步驟 9: 顯示狀態 =====
+cls
+echo.
 echo ════════════════════════════════════════════════════════
-echo     %GREEN%部署完成！%RESET%
+echo     %GREEN%✅ 部署完成！%RESET%
 echo ════════════════════════════════════════════════════════
 echo.
 
 REM 顯示容器狀態
-echo %BOLD%容器狀態：%RESET%
+echo %BOLD%📦 容器狀態：%RESET%
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
 echo.
-echo %BOLD%Unity 連接資訊：%RESET%
-echo   IP 地址:  127.0.0.1
-echo   端口:     10000
-echo   協議:     TCP
+echo %BOLD%🔌 Unity 連接資訊：%RESET%
+echo   • IP 地址:  127.0.0.1
+echo   • 端口:     10000
+echo   • 協議:     TCP
 
 echo.
-echo %BOLD%下一步：%RESET%
-echo   1. 使用 start_all_services.bat 啟動所有服務
-echo   2. 或手動啟動：
-echo      - start_tcp_endpoint.bat
-echo      - start_unity_bridge.bat
+echo %BOLD%📝 常用命令：%RESET%
 echo.
+echo   查看日誌:
+echo   docker logs -f unity_ros2_tcp
+echo.
+echo   進入主容器:
+echo   docker exec -it unity_ros2_tcp bash
+echo.
+echo   進入工具容器:
+echo   docker exec -it ros2_tools bash
+echo.
+echo   列出 ROS2 主題:
+echo   docker exec ros2_tools bash -c "source /opt/ros/humble/setup.bash && ros2 topic list"
+echo.
+echo   監聽心跳:
+echo   docker exec ros2_tools bash -c "source /opt/ros/humble/setup.bash && ros2 topic echo /unity/heartbeat"
+echo.
+echo   停止所有容器:
+echo   docker-compose -f docker-compose-humble.yml down
 
+echo.
+echo %BOLD%🚀 下一步：%RESET%
+echo   1. 開啟 Unity 專案
+echo   2. 在 Robotics ^> ROS Settings 中設定:
+echo      - ROS IP Address: 127.0.0.1
+echo      - ROS Port: 10000
+echo   3. 點擊 Connect 連接到 ROS2
+
+echo.
 echo 按任意鍵關閉此視窗...
 pause >nul
 
