@@ -1,10 +1,11 @@
 @echo off
 REM ========================================
-REM Unity-OpenArm 完整服務啟動腳本
+REM Unity-OpenArm 基本服務啟動腳本
+REM (僅 TCP Endpoint 和 Bridge)
 REM ========================================
 
 echo ========================================
-echo Starting Unity-OpenArm Services
+echo Starting Unity-OpenArm Basic Services
 echo ========================================
 echo.
 
@@ -17,36 +18,24 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [1/4] Starting ROS2 TCP Endpoint...
+echo [1/2] Starting ROS2 TCP Endpoint...
 start "ROS2 TCP Endpoint" cmd /k "docker exec -it unity_ros2_tcp bash -c ""source /opt/ros/humble/setup.bash && cd /ros2_ws && source install/setup.bash && ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=0.0.0.0 -p ROS_TCP_PORT:=10000"""
 timeout /t 3 /nobreak >nul
 
-echo [2/4] Starting Unity-OpenArm Bridge...
+echo [2/2] Starting Unity-OpenArm Bridge...
 start "Unity OpenArm Bridge" cmd /k "docker exec -it unity_ros2_tcp bash -c ""source /opt/ros/humble/setup.bash && cd /ros2_ws && source install/setup.bash && python3 -m unity_openarm_bridge.tcp_bridge_node"""
-timeout /t 3 /nobreak >nul
-
-echo [3/4] Starting MoveIt Servo Node...
-start "MoveIt Servo" cmd /k "docker exec -it unity_ros2_tcp bash -c ""source /opt/ros/humble/setup.bash && cd /ros2_ws && source install/setup.bash && ros2 launch openarm_description servo_node.launch.py"""
-timeout /t 3 /nobreak >nul
-
-echo [4/4] Starting RViz2...
-start "RViz2" cmd /k "docker exec -it unity_ros2_tcp bash -c ""source /opt/ros/humble/setup.bash && cd /ros2_ws && source install/setup.bash && ros2 launch openarm_description display.launch.py"""
 timeout /t 2 /nobreak >nul
 
 echo.
 echo ========================================
-echo All services started successfully!
+echo Basic services started!
 echo ========================================
 echo.
 echo Windows opened:
 echo   1. ROS2 TCP Endpoint (Port: 10000)
 echo   2. Unity-OpenArm Bridge
-echo   3. MoveIt Servo Node
-echo   4. RViz2 Visualization
 echo.
-echo To stop all services:
-echo   - Close each window, or
-echo   - Run: stop_all_services.bat
+echo Now you can start Unity and connect to ROS2.
 echo.
 echo Press any key to exit this window...
 pause >nul

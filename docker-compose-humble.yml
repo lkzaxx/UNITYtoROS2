@@ -9,61 +9,118 @@ services:
     environment:
       - ROS_DOMAIN_ID=0
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - DISPLAY=${DISPLAY:-:0}
     volumes:
       - ./src:/ros2_ws/src
       - ./scripts:/scripts
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
     command: >
       bash -c "
-      echo '🔧 更新套件列表...' &&
-      apt-get update &&
-      echo '📦 安裝 Cyclone DDS...' &&
-      apt-get install -y ros-humble-rmw-cyclonedds-cpp &&
-      echo '📦 安裝 ROS-TCP-Endpoint...' &&
-      (apt-get install -y ros-humble-ros-tcp-endpoint || (
-        echo '⚠️  ros-tcp-endpoint 不在官方庫中，從源碼安裝...' &&
-        apt-get install -y git python3-pip &&
-        cd /ros2_ws/src &&
-        if [ ! -d ros_tcp_endpoint ]; then
-          git clone https://github.com/Unity-Technologies/ROS-TCP-Endpoint.git ros_tcp_endpoint || echo '⚠️  無法克隆 ros_tcp_endpoint'
-        fi
-      )) &&
-      echo '📦 安裝 Python 依賴...' &&
-      apt-get install -y python3-pip &&
-      pip3 install numpy transforms3d pyyaml &&
-      echo '🔨 建置 ROS2 工作區...' &&
+      echo '========================================' &&
+      echo '🚀 Unity-OpenArm ROS2 環境初始化' &&
+      echo '========================================' &&
+      echo '' &&
+      
+      echo '🔧 [1/6] 更新套件列表...' &&
+      apt-get update -qq &&
+      
+      echo '📦 [2/6] 安裝必要套件...' &&
+      apt-get install -y -qq \
+        ros-humble-rmw-cyclonedds-cpp \
+        python3-pip \
+        python3-colcon-common-extensions \
+        git &&
+      
+      echo '📦 [3/6] 安裝 Python 依賴...' &&
+      pip3 install -q numpy transforms3d pyyaml &&
+      
+      echo '🔍 [4/6] 檢查並克隆必要的套件...' &&
+      cd /ros2_ws/src &&
+      if [ ! -d ros_tcp_endpoint ]; then
+        echo '   📥 克隆 ROS-TCP-Endpoint...' &&
+        git clone -q https://github.com/Unity-Technologies/ROS-TCP-Endpoint.git ros_tcp_endpoint
+      else
+        echo '   ✓ ros_tcp_endpoint 已存在'
+      fi &&
+      
+      echo '🔨 [5/6] 編譯 ROS2 工作區...' &&
       cd /ros2_ws &&
       source /opt/ros/humble/setup.bash &&
       export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp &&
-      if [ -d src/ros_tcp_endpoint ] || [ -d src/unity_openarm_bridge ]; then
-        apt-get install -y python3-colcon-common-extensions &&
-        colcon build --symlink-install &&
-        if [ -f install/setup.bash ]; then
-          source install/setup.bash
-        fi
+      
+      echo '   正在編譯套件：ros_tcp_endpoint, unity_openarm_bridge' &&
+      colcon build --symlink-install \
+        --packages-select ros_tcp_endpoint unity_openarm_bridge \
+        --cmake-args -DCMAKE_BUILD_TYPE=Release 2>&1 | grep -E '(Starting|Finished|Failed|Summary)' &&
+      
+      if [ -f install/setup.bash ]; then
+        source install/setup.bash &&
+        echo '   ✓ 編譯完成' &&
+        echo '' &&
+        echo '   可用套件:' &&
+        ros2 pkg list | grep -E '(tcp|unity)' | sed 's/^/     - /'
+      else
+        echo '   ⚠️  編譯失敗，但容器仍會啟動' 
       fi &&
-      echo '✅ 環境設定完成' &&
-      echo '🚀 啟動 TCP Endpoint 伺服器...' &&
+      
+      echo '' &&
+      echo '🚀 [6/6] 啟動服務...' &&
       source /opt/ros/humble/setup.bash &&
       export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp &&
+      
       if [ -f install/setup.bash ]; then
-        source install/setup.bash
-      fi &&
-      ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=0.0.0.0 -p ROS_TCP_PORT:=10000 &
-      echo '⏳ 等待 TCP Endpoint 啟動...' &&
-      sleep 5 &&
-      echo '📡 TCP Endpoint 正在 port 10000 監聽' &&
-      echo '🔍 容器保持運行中...' &&
-      tail -f /dev/null
+        source install/setup.bash &&
+        
+        echo '   🌐 啟動 TCP Endpoint (Port: 10000)...' &&
+        ros2 run ros_tcp_endpoint default_server_endpoint \
+          --ros-args \
+          -p ROS_IP:=0.0.0.0 \
+          -p ROS_TCP_PORT:=10000 &
+        TCP_PID=\$$! &&
+        
+        sleep 3 &&
+        
+        echo '   🤖 啟動 Unity-OpenArm Bridge...' &&
+        python3 -m unity_openarm_bridge.tcp_bridge_node &
+        BRIDGE_PID=\$$! &&
+        
+        echo '' &&
+        echo '========================================' &&
+        echo '✅ 所有服務已啟動！' &&
+        echo '========================================' &&
+        echo '' &&
+        echo '📡 服務狀態:' &&
+        echo '   • TCP Endpoint: 監聽 0.0.0.0:10000' &&
+        echo '   • Unity Bridge: 運行中' &&
+        echo '' &&
+        echo '🔗 Unity 連接設定:' &&
+        echo '   • ROS IP: 127.0.0.1 或 localhost' &&
+        echo '   • ROS Port: 10000' &&
+        echo '' &&
+        echo '📝 可用命令:' &&
+        echo '   • 查看主題: ros2 topic list' &&
+        echo '   • 查看服務: ros2 service list' &&
+        echo '   • 監控心跳: ros2 topic echo /unity/heartbeat' &&
+        echo '' &&
+        echo '🛑 停止容器: docker-compose down' &&
+        echo '========================================' &&
+        echo '' &&
+        
+        wait \$$TCP_PID \$$BRIDGE_PID
+      else
+        echo '   ⚠️  未找到編譯結果，僅啟動基礎環境' &&
+        tail -f /dev/null
+      fi
       "
     stdin_open: true
     tty: true
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f default_server_endpoint > /dev/null || exit 1"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD-SHELL", "pgrep -f default_server_endpoint > /dev/null && pgrep -f tcp_bridge_node > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s
 
   # ROS2 工具和監控容器
   ros2-tools:
@@ -73,26 +130,43 @@ services:
     environment:
       - ROS_DOMAIN_ID=0
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - DISPLAY=${DISPLAY:-:0}
     volumes:
       - ./src:/ros2_ws/src
       - ./scripts:/scripts
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
     depends_on:
-      - ros2-tcp-endpoint
+      ros2-tcp-endpoint:
+        condition: service_healthy
     command: >
       bash -c "
-      echo '🔧 設定 ROS2 工具環境...' &&
-      apt-get update &&
-      apt-get install -y ros-humble-rmw-cyclonedds-cpp &&
+      echo '========================================' &&
+      echo '🔧 ROS2 工具容器' &&
+      echo '========================================' &&
+      echo '' &&
+      
+      apt-get update -qq &&
+      apt-get install -y -qq ros-humble-rmw-cyclonedds-cpp &&
+      
+      cd /ros2_ws &&
       source /opt/ros/humble/setup.bash &&
       export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp &&
-      echo '📊 ROS2 工具容器就緒' &&
+      
+      if [ -f install/setup.bash ]; then
+        source install/setup.bash
+      fi &&
+      
+      echo '📊 工具容器就緒' &&
       echo '' &&
-      echo '可用命令範例:' &&
-      echo '  ros2 topic list' &&
-      echo '  ros2 topic echo /unity/heartbeat' &&
-      echo '  ros2 topic echo /openarm/joint_states' &&
-      echo '  ros2 service list' &&
+      echo '💡 快速命令:' &&
+      echo '   ros2 topic list              # 列出所有主題' &&
+      echo '   ros2 topic echo /unity/heartbeat  # 監控心跳' &&
+      echo '   ros2 service list            # 列出所有服務' &&
+      echo '   ros2 node list               # 列出所有節點' &&
       echo '' &&
+      echo '🎯 進入互動模式...' &&
+      echo '' &&
+      
       exec bash
       "
     stdin_open: true
