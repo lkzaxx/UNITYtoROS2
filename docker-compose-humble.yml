@@ -9,8 +9,8 @@ services:
       - ROS_DOMAIN_ID=0
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
     volumes:
-      - ./ros2_ws:/ros2_ws
-      - ./scripts:/scripts
+      - ./src:/ros2_ws/src              # 修正：映射 src 目錄
+      - ./scripts:/scripts               # 修正：映射 scripts 目錄
     command: |
       bash -c "
         source /opt/ros/humble/setup.bash &&
@@ -24,6 +24,14 @@ services:
           numpy \
           transforms3d &&
         
+        # 建置 ROS2 套件（如果存在）
+        if [ -d /ros2_ws/src/unity_openarm_bridge ]; then
+          echo '📦 建置 unity_openarm_bridge 套件...' &&
+          cd /ros2_ws &&
+          colcon build --packages-select unity_openarm_bridge --symlink-install &&
+          source install/setup.bash
+        fi &&
+        
         # 啟動 TCP Endpoint（背景執行）
         echo '🚀 啟動 ROS TCP Endpoint...' &&
         ros2 run ros_tcp_endpoint default_server_endpoint \
@@ -36,7 +44,12 @@ services:
         
         # 啟動橋接節點
         echo '🔄 啟動 Unity 橋接節點...' &&
-        python3 /scripts/unity_tcp_bridge.py
+        if [ -f /ros2_ws/install/setup.bash ]; then
+          source /ros2_ws/install/setup.bash &&
+          ros2 run unity_openarm_bridge tcp_bridge_node
+        else
+          python3 /scripts/unity_tcp_bridge.py
+        fi
       "
     stdin_open: true
     tty: true
@@ -50,7 +63,8 @@ services:
       - ROS_DOMAIN_ID=0
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
     volumes:
-      - ./ros2_ws:/ros2_ws
+      - ./src:/ros2_ws/src
+      - ./scripts:/scripts
     command: |
       bash -c "
         source /opt/ros/humble/setup.bash &&
