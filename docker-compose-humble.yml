@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # 主要的 ROS2 TCP Endpoint 服務
   ros2-tcp-endpoint:
     image: osrf/ros:humble-desktop
     container_name: unity_ros2_tcp
@@ -8,53 +9,125 @@ services:
     environment:
       - ROS_DOMAIN_ID=0
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - CYCLONEDDS_URI=file:///etc/cyclonedds.xml
     volumes:
-      - ./src:/ros2_ws/src              # 修正：映射 src 目錄
-      - ./scripts:/scripts               # 修正：映射 scripts 目錄
+      # 源碼目錄映射
+      - ./src:/ros2_ws/src
+      - ./scripts:/scripts
+      # Cyclone DDS 配置
+      - ./cyclonedds.xml:/etc/cyclonedds.xml:ro
+      # 持久化安裝目錄（可選）
+      - ros2_install:/ros2_ws/install
+      - ros2_build:/ros2_ws/build
+    ports:
+      # TCP Endpoint 端口
+      - "10000:10000"
+      # DDS 發現端口（如需跨容器通訊）
+      - "7400:7400/udp"
+      - "7410-7420:7410-7420/udp"
     command: |
       bash -c "
         source /opt/ros/humble/setup.bash &&
-        
-        # 安裝必要的套件
+
+        echo '📦 安裝系統依賴...' &&
         apt-get update &&
-        apt-get install -y python3-pip ros-humble-ros-tcp-endpoint &&
-        
-        # 安裝 Python 套件
+        apt-get install -y \
+          python3-pip \
+          ros-humble-ros-tcp-endpoint \
+          ros-humble-tf2-ros \
+          ros-humble-tf2-geometry-msgs \
+          git &&
+
+        echo '📦 安裝 Python 套件...' &&
         pip3 install --no-cache-dir \
           numpy \
-          transforms3d &&
-        
-        # 建置 ROS2 套件（如果存在）
-        if [ -d /ros2_ws/src/unity_openarm_bridge ]; then
-          echo '📦 建置 unity_openarm_bridge 套件...' &&
-          cd /ros2_ws &&
-          colcon build --packages-select unity_openarm_bridge --symlink-install &&
-          source install/setup.bash
+          transforms3d \
+          pyyaml &&
+
+        echo '📥 檢查 ROS-TCP-Endpoint...' &&
+        if [ ! -d /ros2_ws/src/ros_tcp_endpoint ]; then
+          cd /ros2_ws/src &&
+          git clone https://github.com/Unity-Technologies/ROS-TCP-Endpoint.git ros_tcp_endpoint
         fi &&
-        
-        # 啟動 TCP Endpoint（背景執行）
-        echo '🚀 啟動 ROS TCP Endpoint...' &&
+
+        echo '🔨 建置 ROS2 套件...' &&
+        cd /ros2_ws &&
+        colcon build --symlink-install &&
+        source install/setup.bash &&
+
+        echo '🚀 啟動 TCP Endpoint 伺服器...' &&
         ros2 run ros_tcp_endpoint default_server_endpoint \
           --ros-args \
           -p ROS_IP:=0.0.0.0 \
           -p ROS_TCP_PORT:=10000 &
-        
-        # 等待 TCP Endpoint 啟動
+
+        echo '⏳ 等待 TCP Endpoint 啟動...' &&
         sleep 5 &&
-        
-        # 啟動橋接節點
-        echo '🔄 啟動 Unity 橋接節點...' &&
-        if [ -f /ros2_ws/install/setup.bash ]; then
-          source /ros2_ws/install/setup.bash &&
-          ros2 run unity_openarm_bridge tcp_bridge_node
-        else
+
+        echo '🔄 啟動 Unity OpenArm 橋接節點...' &&
+        if [ -f /ros2_ws/install/unity_openarm_bridge/lib/unity_openarm_bridge/tcp_bridge_node.py ]; then
+          python3 /ros2_ws/install/unity_openarm_bridge/lib/unity_openarm_bridge/tcp_bridge_node.py
+        elif [ -f /scripts/unity_tcp_bridge.py ]; then
           python3 /scripts/unity_tcp_bridge.py
+        else
+          echo '❌ 找不到橋接節點腳本！' &&
+          echo '請確保 unity_tcp_bridge.py 在 scripts 目錄中' &&
+          tail -f /dev/null
         fi
       "
     stdin_open: true
     tty: true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "source /opt/ros/humble/setup.bash && ros2 topic list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # 可選：獨立的 ROS2 工具容器（用於測試和監控）
+  # OpenArm 控制器服務
+  openarm-controller:
+    image: osrf/ros:humble-desktop
+    container_name: openarm_controller
+    network_mode: host
+    environment:
+      - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - CYCLONEDDS_URI=file:///etc/cyclonedds.xml
+    volumes:
+      - ./src:/ros2_ws/src
+      - ./scripts:/scripts
+      - ./cyclonedds.xml:/etc/cyclonedds.xml:ro
+      - ros2_install:/ros2_ws/install
+      - ros2_build:/ros2_ws/build
+    depends_on:
+      - ros2-tcp-endpoint
+    command: |
+      bash -c "
+        source /opt/ros/humble/setup.bash &&
+
+        echo '⏳ 等待 TCP Endpoint 服務就緒...' &&
+        sleep 10 &&
+
+        echo '🔨 建置 OpenArm 套件...' &&
+        cd /ros2_ws &&
+        if [ -d src/unity_openarm_bridge ]; then
+          colcon build --packages-select unity_openarm_bridge --symlink-install &&
+          source install/setup.bash
+        fi &&
+
+        echo '🎮 啟動 OpenArm 控制器...' &&
+        if [ -f /ros2_ws/install/unity_openarm_bridge/lib/unity_openarm_bridge/openarm_controller.py ]; then
+          python3 /ros2_ws/install/unity_openarm_bridge/lib/unity_openarm_bridge/openarm_controller.py
+        else
+          echo 'ℹ️ OpenArm 控制器尚未實作，保持容器運行...' &&
+          tail -f /dev/null
+        fi
+      "
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+
+  # ROS2 工具和監控容器
   ros2-tools:
     image: osrf/ros:humble-desktop
     container_name: ros2_tools
@@ -62,19 +135,110 @@ services:
     environment:
       - ROS_DOMAIN_ID=0
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - CYCLONEDDS_URI=file:///etc/cyclonedds.xml
     volumes:
       - ./src:/ros2_ws/src
       - ./scripts:/scripts
+      - ./cyclonedds.xml:/etc/cyclonedds.xml:ro
+      - ros2_install:/ros2_ws/install:ro
+      - ros2_build:/ros2_ws/build:ro
+    depends_on:
+      - ros2-tcp-endpoint
     command: |
       bash -c "
         source /opt/ros/humble/setup.bash &&
-        echo '🔧 ROS2 工具容器就緒' &&
-        echo '可用命令：' &&
-        echo '  ros2 topic list' &&
-        echo '  ros2 topic echo /unity/heartbeat' &&
-        echo '  ros2 topic echo /openarm/joint_states' &&
-        echo '  ros2 topic pub /unity/joint_commands sensor_msgs/msg/JointState ...' &&
+
+        echo '🔧 安裝監控工具...' &&
+        apt-get update &&
+        apt-get install -y \
+          ros-humble-rqt \
+          ros-humble-rqt-topic \
+          ros-humble-rqt-graph \
+          ros-humble-plotjuggler-ros &&
+
+        if [ -f /ros2_ws/install/setup.bash ]; then
+          source /ros2_ws/install/setup.bash
+        fi &&
+
+        echo '📊 ROS2 工具容器就緒' &&
+        echo '' &&
+        echo '可用命令範例：' &&
+        echo '  查看主題列表：' &&
+        echo '    ros2 topic list' &&
+        echo '' &&
+        echo '  監聽心跳訊號：' &&
+        echo '    ros2 topic echo /unity/heartbeat' &&
+        echo '' &&
+        echo '  監聽關節狀態：' &&
+        echo '    ros2 topic echo /openarm/joint_states' &&
+        echo '' &&
+        echo '  發送關節命令：' &&
+        echo '    ros2 topic pub /unity/joint_commands sensor_msgs/msg/JointState \"{header: {stamp: now}, name: [joint_1, joint_2], position: [0.0, 0.0]}\"' &&
+        echo '' &&
+        echo '  檢查服務：' &&
+        echo '    ros2 service list' &&
+        echo '' &&
+        echo '  呼叫 Ping 服務：' &&
+        echo '    ros2 service call /unity/ping example_interfaces/srv/Trigger' &&
+        echo '' &&
+        echo '  啟動 RQT 圖形界面：' &&
+        echo '    rqt' &&
+        echo '' &&
+        echo '  查看節點關係圖：' &&
+        echo '    ros2 run rqt_graph rqt_graph' &&
+        echo '' &&
         bash
       "
     stdin_open: true
     tty: true
+
+  # 可選：RViz2 視覺化容器（需要 X11 支援）
+  rviz2:
+    image: osrf/ros:humble-desktop-full
+    container_name: ros2_rviz
+    network_mode: host
+    environment:
+      - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - CYCLONEDDS_URI=file:///etc/cyclonedds.xml
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+    volumes:
+      - ./src:/ros2_ws/src:ro
+      - ./cyclonedds.xml:/etc/cyclonedds.xml:ro
+      - ros2_install:/ros2_ws/install:ro
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${HOME}/.Xauthority:/root/.Xauthority:rw
+    depends_on:
+      - ros2-tcp-endpoint
+    command: |
+      bash -c "
+        source /opt/ros/humble/setup.bash &&
+
+        if [ -f /ros2_ws/install/setup.bash ]; then
+          source /ros2_ws/install/setup.bash
+        fi &&
+
+        echo '🖼️ 啟動 RViz2...' &&
+        echo 'ℹ️ 如果看不到視窗，請確保 X11 forwarding 已設定' &&
+        echo '在 WSL 中執行: export DISPLAY=:0' &&
+
+        rviz2
+      "
+    stdin_open: true
+    tty: true
+    profiles:
+      - visualization
+
+# 定義 volumes 用於持久化建置結果
+volumes:
+  ros2_install:
+    driver: local
+  ros2_build:
+    driver: local
+
+# 網路配置（可選）
+networks:
+  default:
+    name: ros2_unity_network
+    driver: bridge
