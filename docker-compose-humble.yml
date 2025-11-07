@@ -1,27 +1,66 @@
+version: '3.8'
+
 services:
-  ros2_humble:
-    image: osrf/ros:humble-desktop-full
-    container_name: ros2_humble
-    working_dir: /root/ros2_ws
-    # network_mode: host  # 改為橋接網路模式以支援埠號映射
-    ports:
-      - "7400:7400/udp"  # DDS 發現埠（SPDP）
-      - "7410-7420:7410-7420/udp"  # DDS 資料傳輸埠範圍（縮小範圍避免衝突）
-      - "10000:10000/tcp"  # ROS-TCP-Endpoint 伺服器埠（Unity 連接用）
+  ros2-tcp-endpoint:
+    image: osrf/ros:humble-desktop
+    container_name: unity_ros2_tcp
+    network_mode: host
+    environment:
+      - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+    volumes:
+      - ./ros2_ws:/ros2_ws
+      - ./scripts:/scripts
+    command: |
+      bash -c "
+        source /opt/ros/humble/setup.bash &&
+        
+        # 安裝必要的套件
+        apt-get update &&
+        apt-get install -y python3-pip ros-humble-ros-tcp-endpoint &&
+        
+        # 安裝 Python 套件
+        pip3 install --no-cache-dir \
+          numpy \
+          transforms3d &&
+        
+        # 啟動 TCP Endpoint（背景執行）
+        echo '🚀 啟動 ROS TCP Endpoint...' &&
+        ros2 run ros_tcp_endpoint default_server_endpoint \
+          --ros-args \
+          -p ROS_IP:=0.0.0.0 \
+          -p ROS_TCP_PORT:=10000 &
+        
+        # 等待 TCP Endpoint 啟動
+        sleep 5 &&
+        
+        # 啟動橋接節點
+        echo '🔄 啟動 Unity 橋接節點...' &&
+        python3 /scripts/unity_tcp_bridge.py
+      "
     stdin_open: true
     tty: true
+
+  # 可選：獨立的 ROS2 工具容器（用於測試和監控）
+  ros2-tools:
+    image: osrf/ros:humble-desktop
+    container_name: ros2_tools
+    network_mode: host
     environment:
-      - DISPLAY=${DISPLAY}
-      - WAYLAND_DISPLAY=${WAYLAND_DISPLAY}
-      - XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}
-      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-      - CYCLONEDDS_URI=file:///etc/cyclonedds.xml
       - ROS_DOMAIN_ID=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
     volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix
-      - /mnt/wslg:/mnt/wslg
-      - ./:/root/ros2_ws
-      - ./cyclonedds.xml:/etc/cyclonedds.xml
-      - ./cyclonedds.xml:/root/.cyclonedds.xml
-    entrypoint: ["/root/ros2_ws/docker-entrypoint-humble.sh"]
-    command: bash
+      - ./ros2_ws:/ros2_ws
+    command: |
+      bash -c "
+        source /opt/ros/humble/setup.bash &&
+        echo '🔧 ROS2 工具容器就緒' &&
+        echo '可用命令：' &&
+        echo '  ros2 topic list' &&
+        echo '  ros2 topic echo /unity/heartbeat' &&
+        echo '  ros2 topic echo /openarm/joint_states' &&
+        echo '  ros2 topic pub /unity/joint_commands sensor_msgs/msg/JointState ...' &&
+        bash
+      "
+    stdin_open: true
+    tty: true
