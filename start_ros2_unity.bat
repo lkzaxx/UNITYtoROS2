@@ -3,7 +3,7 @@ chcp 65001 >nul
 cls
 
 echo ════════════════════════════════════════════════
-echo     ROS2 Unity TCP Bridge 快速啟動
+echo     ROS2 Unity TCP Bridge 快速啟動 (修正版)
 echo ════════════════════════════════════════════════
 echo.
 
@@ -36,19 +36,19 @@ if not exist "scripts" mkdir scripts
 
 REM 停止舊容器
 echo 🔄 清理舊容器...
-docker-compose -f docker-compose-fixed.yml down 2>nul
-docker rm -f unity_ros2_tcp ros2_tools 2>nul
+docker-compose -f docker-compose-humble.yml down 2>nul
+docker rm -f unity_ros2_tcp ros2_humble ros2_tools 2>nul
 echo.
 
-REM 啟動新容器
+REM 啟動新容器（✅ 修正：使用正確的配置檔案）
 echo 🚀 啟動 ROS2 Unity Bridge...
-docker-compose -f docker-compose-fixed.yml up -d
+docker-compose -f docker-compose-humble.yml up -d
 
 if errorlevel 1 (
     echo ❌ 容器啟動失敗！
     echo.
     echo 查看錯誤詳情：
-    docker-compose -f docker-compose-fixed.yml logs
+    docker-compose -f docker-compose-humble.yml logs
     pause
     exit /b 1
 )
@@ -67,20 +67,31 @@ echo    IP:   127.0.0.1
 echo    Port: 10000
 echo.
 echo 🔍 檢查服務狀態：
-docker exec ros2_tools bash -c "source /opt/ros/humble/setup.bash && export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp && ros2 topic list 2>/dev/null | head -5"
+docker ps --format "table {{.Names}}\t{{.Status}}"
+echo.
+echo 📝 下一步操作：
+echo.
+echo 1. 啟動 TCP Endpoint (新終端):
+echo    start_tcp_endpoint.bat
+echo.
+echo 2. 啟動 Unity Bridge (新終端):
+echo    start_unity_bridge.bat
+echo.
+echo 或使用一鍵啟動:
+echo    start_all_services.bat
 echo.
 echo 📝 常用命令：
 echo.
 echo 查看日誌：
 echo   docker logs -f unity_ros2_tcp
 echo.
-echo 進入工具容器：
-echo   docker exec -it ros2_tools bash
+echo 進入容器：
+echo   docker exec -it ros2_humble bash
 echo.
 echo 監聽心跳：
-echo   docker exec ros2_tools bash -c "source /opt/ros/humble/setup.bash && export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp && ros2 topic echo /unity/heartbeat"
+echo   docker exec ros2_humble bash -c "source /opt/ros/humble/setup.bash && ros2 topic echo /unity/heartbeat"
 echo.
 echo 停止服務：
-echo   docker-compose -f docker-compose-fixed.yml down
+echo   docker-compose -f docker-compose-humble.yml down
 echo.
 pause
