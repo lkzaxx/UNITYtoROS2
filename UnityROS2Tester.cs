@@ -21,83 +21,83 @@ public class UnityROS2Tester : MonoBehaviour
     [Header("連線設定")]
     public string rosIPAddress = "127.0.0.1";
     public int rosPort = 10000;
-    
+
     [Header("測試設定")]
     public float testInterval = 2.0f;
     public bool enableHeartbeatTest = true;
     public bool enablePoseTest = true;
     public bool enableJointTest = true;
-    
+
     [Header("測試資料")]
     public Vector3 testPosition = new Vector3(0.5f, 0.0f, 0.3f);
     public Vector3 testRotation = Vector3.zero;
     public float[] testJointPositions = new float[7] { 0f, 0.5f, 0f, -1f, 0f, 0.5f, 0f };
-    
+
     // ROS 連接器
     private ROSConnection ros;
-    
+
     // 測試狀態
     private bool isConnected = false;
     private int heartbeatCount = 0;
     private int jointStateCount = 0;
     private float lastTestTime = 0f;
-    
+
     // 主題名稱
     private const string HEARTBEAT_TOPIC = "/unity/heartbeat";
     private const string POSE_TOPIC = "/unity/pose";
     private const string JOINT_CMD_TOPIC = "/unity/joint_commands";
     private const string JOINT_STATE_TOPIC = "/openarm/joint_states";
     private const string PING_SERVICE = "/unity/ping";
-    
+
     void Start()
     {
         Debug.Log("🚀 開始 Unity-ROS2 連線測試");
-        
+
         // 初始化 ROS 連接
         InitializeROS();
-        
+
         // 開始測試協程
         StartCoroutine(RunTests());
     }
-    
+
     void InitializeROS()
     {
         try
         {
             // 獲取 ROS 連接器實例
             ros = ROSConnection.GetOrCreateInstance();
-            
+
             // 設定連接參數
             ros.ConnectOnStart = true;
-            
+
             Debug.Log($"📡 嘗試連接到 ROS 2: {rosIPAddress}:{rosPort}");
-            
+
             // 註冊訂閱者
             if (enableHeartbeatTest)
             {
                 ros.Subscribe<StringMsg>(HEARTBEAT_TOPIC, OnHeartbeatReceived);
                 Debug.Log($"📥 已訂閱: {HEARTBEAT_TOPIC}");
             }
-            
+
             ros.Subscribe<JointStateMsg>(JOINT_STATE_TOPIC, OnJointStateReceived);
-            Debug.log($"📥 已訂閱: {JOINT_STATE_TOPIC}");
-            
+            Debug.Log($"📥 已訂閱: {JOINT_STATE_TOPIC}");
+
             // 註冊發布者
             if (enablePoseTest)
             {
                 ros.RegisterPublisher<PoseStampedMsg>(POSE_TOPIC);
                 Debug.Log($"📤 已註冊發布者: {POSE_TOPIC}");
             }
-            
+
             if (enableJointTest)
             {
                 ros.RegisterPublisher<JointStateMsg>(JOINT_CMD_TOPIC);
                 Debug.Log($"📤 已註冊發布者: {JOINT_CMD_TOPIC}");
             }
-            
+
             isConnected = true;
             Debug.Log("✅ ROS 連接初始化完成");
-            
+
         }
         catch (Exception e)
         {
@@ -105,12 +105,12 @@ public class UnityROS2Tester : MonoBehaviour
             isConnected = false;
         }
     }
-    
+
     IEnumerator RunTests()
     {
         // 等待連接建立
         yield return new WaitForSeconds(2f);
-        
+
         while (true)
         {
             if (isConnected && Time.time - lastTestTime >= testInterval)
@@ -119,34 +119,34 @@ public class UnityROS2Tester : MonoBehaviour
                 RunAllTests();
                 lastTestTime = Time.time;
             }
-            
+
             yield return new WaitForSeconds(0.1f);
         }
     }
-    
+
     void RunAllTests()
     {
         Debug.Log("🧪 執行連線測試...");
-        
+
         // 測試 Ping 服務
         TestPingService();
-        
+
         // 測試姿態發布
         if (enablePoseTest)
         {
             TestPosePublishing();
         }
-        
+
         // 測試關節命令發布
         if (enableJointTest)
         {
             TestJointCommandPublishing();
         }
-        
+
         // 顯示統計資訊
         ShowStatistics();
     }
-    
+
     void TestPingService()
     {
         try
@@ -160,7 +160,7 @@ public class UnityROS2Tester : MonoBehaviour
             Debug.LogWarning($"⚠️ Ping 服務測試失敗: {e.Message}");
         }
     }
-    
+
     void TestPosePublishing()
     {
         try
@@ -182,7 +182,7 @@ public class UnityROS2Tester : MonoBehaviour
                     orientation = Quaternion.Euler(testRotation).To<FLU>()
                 }
             };
-            
+
             ros.Publish(POSE_TOPIC, poseMsg);
             Debug.Log($"📍 發布姿態: 位置={testPosition}, 旋轉={testRotation}");
         }
@@ -191,7 +191,7 @@ public class UnityROS2Tester : MonoBehaviour
             Debug.LogError($"❌ 姿態發布失敗: {e.Message}");
         }
     }
-    
+
     void TestJointCommandPublishing()
     {
         try
@@ -212,7 +212,7 @@ public class UnityROS2Tester : MonoBehaviour
                 velocity = new double[7],
                 effort = new double[7]
             };
-            
+
             ros.Publish(JOINT_CMD_TOPIC, jointMsg);
             Debug.Log($"🦾 發布關節命令: [{string.Join(", ", testJointPositions)}]");
         }
@@ -221,53 +221,53 @@ public class UnityROS2Tester : MonoBehaviour
             Debug.LogError($"❌ 關節命令發布失敗: {e.Message}");
         }
     }
-    
+
     void OnHeartbeatReceived(StringMsg heartbeat)
     {
         heartbeatCount++;
         Debug.Log($"💓 收到心跳 #{heartbeatCount}: {heartbeat.data}");
     }
-    
+
     void OnJointStateReceived(JointStateMsg jointState)
     {
         jointStateCount++;
-        
+
         if (jointState.position != null && jointState.position.Length > 0)
         {
             string positions = string.Join(", ", Array.ConvertAll(jointState.position, x => x.ToString("F3")));
             Debug.Log($"🦾 收到關節狀態 #{jointStateCount}: [{positions}]");
         }
     }
-    
+
     void ShowStatistics()
     {
         Debug.Log($"📊 統計資訊 - 心跳: {heartbeatCount}, 關節狀態: {jointStateCount}");
     }
-    
+
     void OnGUI()
     {
         // 在螢幕上顯示連線狀態
         GUILayout.BeginArea(new Rect(10, 10, 300, 200));
         GUILayout.Label("Unity-ROS2 連線測試", GUI.skin.box);
-        
+
         GUILayout.Label($"連線狀態: {(isConnected ? "✅ 已連接" : "❌ 未連接")}");
         GUILayout.Label($"ROS 地址: {rosIPAddress}:{rosPort}");
         GUILayout.Label($"心跳計數: {heartbeatCount}");
         GUILayout.Label($"關節狀態計數: {jointStateCount}");
-        
+
         if (GUILayout.Button("手動測試"))
         {
             RunAllTests();
         }
-        
+
         if (GUILayout.Button("重新連接"))
         {
             InitializeROS();
         }
-        
+
         GUILayout.EndArea();
     }
-    
+
     void OnDestroy()
     {
         // 清理資源
