@@ -5,7 +5,7 @@ services:
   ros2-tcp-endpoint:
     image: osrf/ros:humble-desktop
     container_name: unity_ros2_tcp
-    network_mode: host
+    network_mode: host  # 使用主機網路模式，不需要 ports 映射
     environment:
       - ROS_DOMAIN_ID=0
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
@@ -13,17 +13,15 @@ services:
       # 源碼目錄映射
       - ./src:/ros2_ws/src
       - ./scripts:/scripts
-    ports:
-      # TCP Endpoint 端口
-      - "10000:10000"
+    # 注意: 使用 network_mode: host 時，ports 映射會被忽略，所以已移除
     command: ["/bin/bash", "-c", "
         set -e &&
         echo '🔧 更新套件列表...' &&
         apt-get update &&
-        
+
         echo '📦 安裝 Cyclone DDS...' &&
         apt-get install -y ros-humble-rmw-cyclonedds-cpp &&
-        
+
         echo '📦 安裝 ROS-TCP-Endpoint...' &&
         apt-get install -y ros-humble-ros-tcp-endpoint ||
         (
@@ -34,35 +32,35 @@ services:
             git clone https://github.com/Unity-Technologies/ROS-TCP-Endpoint.git ros_tcp_endpoint;
           fi
         ) &&
-        
+
         echo '📦 安裝 Python 依賴...' &&
         apt-get install -y python3-pip &&
         pip3 install numpy transforms3d pyyaml &&
-        
+
         echo '🔨 建置 ROS2 工作區...' &&
         cd /ros2_ws &&
         source /opt/ros/humble/setup.bash &&
         export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp &&
-        
+
         if [ -d src/ros_tcp_endpoint ] || [ -d src/unity_openarm_bridge ]; then
           apt-get install -y python3-colcon-common-extensions &&
           colcon build --symlink-install &&
           source install/setup.bash;
         fi &&
-        
+
         echo '🚀 啟動 TCP Endpoint 伺服器...' &&
         source /opt/ros/humble/setup.bash &&
         export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp &&
-        
+
         if [ -f install/setup.bash ]; then
           source install/setup.bash;
         fi &&
-        
+
         ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=0.0.0.0 -p ROS_TCP_PORT:=10000 &
-        
+
         echo '⏳ 等待 TCP Endpoint 啟動...' &&
         sleep 5 &&
-        
+
         echo '🔄 啟動 Unity 橋接節點...' &&
         if [ -f /scripts/unity_tcp_bridge.py ]; then
           python3 /scripts/unity_tcp_bridge.py;
@@ -94,10 +92,10 @@ services:
         echo '🔧 設定 ROS2 工具環境...' &&
         apt-get update &&
         apt-get install -y ros-humble-rmw-cyclonedds-cpp &&
-        
+
         source /opt/ros/humble/setup.bash &&
         export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp &&
-        
+
         echo '📊 ROS2 工具容器就緒' &&
         echo '' &&
         echo '可用命令範例：' &&
@@ -110,10 +108,3 @@ services:
       "]
     stdin_open: true
     tty: true
-
-# 定義 volumes
-volumes:
-  ros2_install:
-    driver: local
-  ros2_build:
-    driver: local
