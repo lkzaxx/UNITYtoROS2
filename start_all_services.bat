@@ -31,14 +31,14 @@ echo.
 
 REM Start TCP Endpoint in a new window using PowerShell for better quote handling
 echo [INFO] Starting TCP Endpoint server (new window)...
-powershell -Command "Start-Process cmd -ArgumentList '/k', 'docker exec -it ros2_humble bash -c \"source /opt/ros/humble/setup.bash && cd /root/ros2_ws && source install/setup.bash && ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=0.0.0.0 -p ROS_TCP_PORT:=10000\"' -WindowStyle Normal"
+powershell -Command "Start-Process cmd -ArgumentList '/k', 'docker exec -it ros2_humble bash -c \"source /opt/ros/humble/setup.bash && cd /root/ros2_ws && source install/setup.bash && ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=0.0.0.0 -p ROS_TCP_PORT:=10000\"'"
 
 REM Wait a bit for the first service to start
 timeout /t 2 /nobreak >nul
 
 REM Start Unity bridge node in a new window
 echo [INFO] Starting Unity bridge node (new window)...
-powershell -Command "Start-Process cmd -ArgumentList '/k', 'docker exec -it ros2_humble bash -c \"source /opt/ros/humble/setup.bash && cd /root/ros2_ws && source install/setup.bash && python3 /root/ros2_ws/install/unity_openarm_bridge/lib/unity_bridge_py/tcp_bridge_node\"' -WindowStyle Normal"
+powershell -Command "Start-Process cmd -ArgumentList '/k', 'docker exec -it ros2_humble bash -c \"source /opt/ros/humble/setup.bash && cd /root/ros2_ws && source install/setup.bash && python3 /root/ros2_ws/install/unity_openarm_bridge/lib/unity_bridge_py/tcp_bridge_node\"'"
 
 echo.
 echo ============================================
