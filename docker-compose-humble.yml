@@ -14,22 +14,18 @@ services:
       - ./src:/ros2_ws/src
       - ./scripts:/scripts
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
-    command: >
-      bash -c "
+    command: ["/bin/bash", "-c", "
+      set -e &&
       echo '========================================' &&
       echo '🚀 Unity-OpenArm ROS2 環境初始化' &&
       echo '========================================' &&
       echo '' &&
-      
+
       echo '🔧 [1/6] 更新套件列表...' &&
       apt-get update -qq &&
-      
+
       echo '📦 [2/6] 安裝必要套件...' &&
-      apt-get install -y -qq \
-        ros-humble-rmw-cyclonedds-cpp \
-        python3-pip \
-        python3-colcon-common-extensions \
-        git &&
+      apt-get install -y -qq ros-humble-rmw-cyclonedds-cpp python3-pip python3-colcon-common-extensions git &&
       
       echo '📦 [3/6] 安裝 Python 依賴...' &&
       pip3 install -q numpy transforms3d pyyaml &&
@@ -49,9 +45,7 @@ services:
       export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp &&
       
       echo '   正在編譯套件：ros_tcp_endpoint, unity_openarm_bridge' &&
-      colcon build --symlink-install \
-        --packages-select ros_tcp_endpoint unity_openarm_bridge \
-        --cmake-args -DCMAKE_BUILD_TYPE=Release 2>&1 | grep -E '(Starting|Finished|Failed|Summary)' &&
+      colcon build --symlink-install --packages-select ros_tcp_endpoint unity_openarm_bridge --cmake-args -DCMAKE_BUILD_TYPE=Release 2>&1 | grep -E '(Starting|Finished|Failed|Summary)' &&
       
       if [ -f install/setup.bash ]; then
         source install/setup.bash &&
@@ -72,10 +66,7 @@ services:
         source install/setup.bash &&
         
         echo '   🌐 啟動 TCP Endpoint (Port: 10000)...' &&
-        ros2 run ros_tcp_endpoint default_server_endpoint \
-          --ros-args \
-          -p ROS_IP:=0.0.0.0 \
-          -p ROS_TCP_PORT:=10000 &
+        ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=0.0.0.0 -p ROS_TCP_PORT:=10000 &
         TCP_PID=\$$! &&
         
         sleep 3 &&
@@ -138,13 +129,12 @@ services:
     depends_on:
       ros2-tcp-endpoint:
         condition: service_healthy
-    command: >
-      bash -c "
+    command: ["/bin/bash", "-c", "
       echo '========================================' &&
       echo '🔧 ROS2 工具容器' &&
       echo '========================================' &&
       echo '' &&
-      
+
       apt-get update -qq &&
       apt-get install -y -qq ros-humble-rmw-cyclonedds-cpp &&
       
