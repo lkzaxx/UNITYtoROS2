@@ -25,6 +25,6 @@ echo [INFO] Press Ctrl+C to stop the node
 echo.
 
 REM Enter container and start Unity bridge node
-docker exec -it ros2_humble bash -c "source /opt/ros/humble/setup.bash && cd /root/ros2_ws && source install/setup.bash && python3 /root/ros2_ws/install/unity_openarm_bridge/lib/unity_bridge_py/tcp_bridge_node"
+docker exec -it ros2_humble bash -c "source /opt/ros/humble/setup.bash && cd /ros2_ws && source install/setup.bash && python3 /root/ros2_ws/install/unity_openarm_bridge/lib/unity_bridge_py/tcp_bridge_node"
 
 pause

@@ -25,6 +25,6 @@ echo [INFO] Press Ctrl+C to stop the server
 echo.
 
 REM Enter container and start TCP Endpoint server
-docker exec -it ros2_humble bash -c "source /opt/ros/humble/setup.bash && cd /root/ros2_ws && source install/setup.bash && ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=0.0.0.0 -p ROS_TCP_PORT:=10000"
+docker exec -it ros2_humble bash -c "source /opt/ros/humble/setup.bash && cd /ros2_ws && source install/setup.bash && ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=0.0.0.0 -p ROS_TCP_PORT:=10000"
 
 pause
