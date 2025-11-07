@@ -30,10 +30,10 @@ echo [INFO] Starting services...
 echo.
 
 REM Create temporary script for TCP Endpoint
-echo docker exec -it unity_ros2_tcp bash -c "source /opt/ros/humble/setup.bash && cd /root/ros2_ws && source install/setup.bash && ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=0.0.0.0 -p ROS_TCP_PORT:=10000" > %TEMP%\start_tcp_endpoint.bat
+echo docker exec -it unity_ros2_tcp bash -c "source /opt/ros/humble/setup.bash && cd /ros2_ws && source install/setup.bash && ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=0.0.0.0 -p ROS_TCP_PORT:=10000" > %TEMP%\start_tcp_endpoint.bat
 
 REM Create temporary script for Unity bridge
-echo docker exec -it unity_ros2_tcp bash -c "source /opt/ros/humble/setup.bash && cd /root/ros2_ws && source install/setup.bash && python3 /root/ros2_ws/install/unity_openarm_bridge/lib/unity_bridge_py/tcp_bridge_node" > %TEMP%\start_unity_bridge.bat
+echo docker exec -it unity_ros2_tcp bash -c "source /opt/ros/humble/setup.bash && cd /ros2_ws && source install/setup.bash && python3 /ros2_ws/install/unity_openarm_bridge/lib/unity_bridge_py/tcp_bridge_node" > %TEMP%\start_unity_bridge.bat
 
 REM Start TCP Endpoint in a new window
 echo [INFO] Starting TCP Endpoint server (new window)...
