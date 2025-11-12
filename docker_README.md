@@ -240,6 +240,17 @@ environment:
 2. 檢查服務狀態：使用 `view_status.bat`
 3. 嘗試重啟服務：`docker-compose -f docker-compose-humble.yml restart`
 
+
+---
+docker-compose -f docker-compose-humble.yml down
+
+docker-compose -f docker-compose-humble.yml up -d
+
+netstat -ano | findstr 10000
+
+docker ps
+
+docker logs unity_ros2_tcp
 ---
 
 **版本**: 1.0.0  
