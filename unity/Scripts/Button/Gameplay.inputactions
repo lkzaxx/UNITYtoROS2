@@ -1,0 +1,119 @@
+{
+    "version": 1,
+    "name": "Gameplay",
+    "maps": [
+        {
+            "name": "Calibrate",
+            "id": "1ec0375a-bdbe-49c0-9088-d2d59d6ed185",
+            "actions": [
+                {
+                    "name": "Calibrate",
+                    "type": "Button",
+                    "id": "06835780-ae0e-4103-a794-5619a9d4bb86",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "de9c557b-f47a-49a4-ae40-a6f99f26a915",
+                    "path": "<XRController>{RightHand}/grip",
+                    "interactions": "Hold(duration=0.6,pressPoint=0.7)",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Calibrate",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        },
+        {
+            "name": "RightGripperTrigger",
+            "id": "be543372-6d73-4d1c-a86a-c5e01c2ce749",
+            "actions": [
+                {
+                    "name": "New action",
+                    "type": "Button",
+                    "id": "af7489c6-4f08-4560-a590-3f9202e52460",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "738b3189-b500-4edc-851d-47eb57e18425",
+                    "path": "<XRController>{RightHand}/triggerPressed",
+                    "interactions": "Press",
+                    "processors": "",
+                    "groups": "",
+                    "action": "New action",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        },
+        {
+            "name": "LeftGripperTrigger",
+            "id": "52e8aa90-9abb-45f0-85ad-8b37c6ac63c2",
+            "actions": [
+                {
+                    "name": "New action",
+                    "type": "Button",
+                    "id": "d0f9b256-ab62-4120-9dcb-bc33617c8a3a",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "2d4c3fa6-b22e-4070-90c1-b3791da03954",
+                    "path": "<XRController>{LeftHand}/triggerPressed",
+                    "interactions": "Press",
+                    "processors": "",
+                    "groups": "",
+                    "action": "New action",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        },
+        {
+            "name": "LeftCalibrate",
+            "id": "2e554a3f-473c-425f-b522-e9e02000b3d2",
+            "actions": [
+                {
+                    "name": "New action",
+                    "type": "Button",
+                    "id": "3b4c7673-89cf-4375-97ee-342d29e53e99",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "a0d54443-6682-4f3f-a0af-7ec2939ac88a",
+                    "path": "<XRController>{LeftHand}/grip",
+                    "interactions": "Hold(duration=0.6,pressPoint=0.7)",
+                    "processors": "",
+                    "groups": "",
+                    "action": "New action",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": []
+}
