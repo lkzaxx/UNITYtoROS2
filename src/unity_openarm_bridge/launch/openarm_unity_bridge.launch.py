@@ -16,7 +16,8 @@ License: Apache-2.0
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from ament_index_python.packages import get_package_share_directory
@@ -63,6 +64,32 @@ def generate_launch_description():
         description='Start RViz for visualization'
     )
     
+    # OpenArm official controller arguments
+    start_openarm_controller_arg = DeclareLaunchArgument(
+        'start_openarm_controller',
+        default_value='true',
+        description='Start OpenArm official ros2_control controller'
+    )
+    
+    hardware_type_arg = DeclareLaunchArgument(
+        'hardware_type',
+        default_value='real',
+        choices=['real', 'fake'],
+        description='OpenArm hardware type: real or fake (for testing)'
+    )
+    
+    arm_type_arg = DeclareLaunchArgument(
+        'arm_type',
+        default_value='v10',
+        description='OpenArm arm type (e.g., v10)'
+    )
+    
+    can_interface_arg = DeclareLaunchArgument(
+        'can_interface',
+        default_value='can0',
+        description='CAN interface for OpenArm hardware'
+    )
+    
     # Get launch configurations
     tcp_ip = LaunchConfiguration('tcp_ip')
     tcp_port = LaunchConfiguration('tcp_port')
@@ -70,6 +97,10 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time')
     load_robot_description = LaunchConfiguration('load_robot_description')
     start_rviz = LaunchConfiguration('start_rviz')
+    start_openarm_controller = LaunchConfiguration('start_openarm_controller')
+    hardware_type = LaunchConfiguration('hardware_type')
+    arm_type = LaunchConfiguration('arm_type')
+    can_interface = LaunchConfiguration('can_interface')
     
     # ROS-TCP-Endpoint server node
     tcp_endpoint_node = Node(
@@ -162,6 +193,32 @@ def generate_launch_description():
         print(f"OpenArm description not found: {e}")
         print("Continuing without robot description...")
     
+    # OpenArm official bringup (conditional)
+    # Include OpenArm official launch file with ros2_control
+    openarm_bringup_launch = None
+    try:
+        openarm_bringup_share = get_package_share_directory('openarm_bringup')
+        # Convert hardware_type to use_fake_hardware parameter
+        use_fake_hardware_value = PythonExpression([
+            "'false' if '", hardware_type, "' == 'real' else 'true'"
+        ])
+        openarm_bringup_launch = IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                os.path.join(openarm_bringup_share, 'launch', 'openarm.launch.py')
+            ]),
+            launch_arguments={
+                'arm_type': arm_type,
+                'use_fake_hardware': use_fake_hardware_value,
+                'robot_controller': 'forward_position_controller',
+                'can_interface': can_interface,
+            }.items(),
+            condition=IfCondition(start_openarm_controller),
+        )
+    except Exception as e:
+        print(f"OpenArm bringup not found: {e}")
+        print("Continuing without OpenArm official controller...")
+        print("Note: Unity commands will be forwarded but OpenArm hardware may not respond.")
+    
     # RViz node (conditional)
     rviz_config_file = PathJoinSubstitution([
         FindPackageShare('unity_openarm_bridge'),
@@ -190,6 +247,10 @@ def generate_launch_description():
         use_sim_time_arg,
         load_robot_description_arg,
         start_rviz_arg,
+        start_openarm_controller_arg,
+        hardware_type_arg,
+        arm_type_arg,
+        can_interface_arg,
         
         # Core nodes
         tcp_endpoint_node,
@@ -203,5 +264,9 @@ def generate_launch_description():
     # Add robot description nodes if available
     for node in robot_description_nodes:
         launch_description.add_action(node)
+    
+    # Add OpenArm official bringup if available
+    if openarm_bringup_launch is not None:
+        launch_description.add_action(openarm_bringup_launch)
     
     return launch_description

@@ -18,7 +18,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
-from std_msgs.msg import String
+from std_msgs.msg import String, Float64MultiArray
 from geometry_msgs.msg import PoseStamped
 from sensor_msgs.msg import JointState
 from example_interfaces.srv import Trigger
@@ -105,6 +105,14 @@ class UnityOpenArmBridge(Node):
             PoseStamped,
             '/openarm/end_effector_pose',
             self.sensor_qos
+        )
+        
+        # OpenArm official controller command publisher
+        # Forward Unity joint commands to OpenArm forward_position_controller
+        self.forward_position_pub = self.create_publisher(
+            Float64MultiArray,
+            '/forward_position_controller/commands',
+            self.reliable_qos
         )
     
     def setup_subscribers(self):
@@ -197,9 +205,19 @@ class UnityOpenArmBridge(Node):
             joint_str = ", ".join([f"{pos:.3f}" for pos in msg.position[:7]])  # Show first 7 joints
             self.get_logger().info(f"Joint positions: [{joint_str}]")
         
-        # TODO: Forward to OpenArm hardware interface
-        # For now, simulate by updating our internal state
+        # Forward to OpenArm official controller (forward_position_controller)
         if len(msg.position) >= 7:  # OpenArm has 7 DOF
+            # Convert JointState to Float64MultiArray for forward_position_controller
+            forward_cmd = Float64MultiArray()
+            forward_cmd.data = [float(pos) for pos in msg.position[:7]]  # Extract first 7 joints
+            
+            # Publish to OpenArm official controller
+            self.forward_position_pub.publish(forward_cmd)
+            self.get_logger().debug(
+                f"Forwarded {len(forward_cmd.data)} joint commands to OpenArm forward_position_controller"
+            )
+            
+            # Also simulate for testing/visualization (optional)
             self.simulate_joint_movement(msg)
     
     def openarm_state_callback(self, msg: JointState):
